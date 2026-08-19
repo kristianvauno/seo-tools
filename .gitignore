@@ -1,4 +1,5 @@
 .env
 qa/
 _sample*.jpg
-data/
+data/*
+!data/businesses.json

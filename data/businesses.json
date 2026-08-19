@@ -1,0 +1,26 @@
+[
+  {
+    "id": "biz-mt02nxd8-basuak",
+    "name": "Robv",
+    "lat": 49.15531,
+    "lng": -122.669765,
+    "altitude": null,
+    "city": "Township of Langley",
+    "state": "British Columbia",
+    "country": "Canada",
+    "area": "Robv",
+    "updatedAt": "2026-08-19T12:32:53.420Z"
+  },
+  {
+    "id": "biz-mt01b06h-lk1njp",
+    "name": "South Coast Coatings LLC",
+    "lat": 34.901288,
+    "lng": -82.42003,
+    "altitude": null,
+    "city": "",
+    "state": "South Carolina",
+    "country": "United States",
+    "area": "South Coast Coatings LLC",
+    "updatedAt": "2026-08-19T11:54:50.921Z"
+  }
+]

@@ -273,17 +273,30 @@
 
   async function loadBusinesses() {
     try {
-      const res = await fetch(API_BASE + "/api/businesses");
+      const res = await fetch(API_BASE + "/api/businesses?t=" + Date.now());
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not load businesses");
-      if (data.ephemeral) {
-        setLocalBusinesses(localBusinesses());
+      if (res.ok && Array.isArray(data.businesses) && data.businesses.length) {
+        setLocalBusinesses(data.businesses);
         return;
       }
-      setLocalBusinesses(data.businesses || []);
     } catch {
-      setLocalBusinesses(localBusinesses());
+      /* try GitHub next */
     }
+    try {
+      const res = await fetch(
+        "https://raw.githubusercontent.com/kristianvauno/seo-tools/main/data/businesses.json?t=" + Date.now()
+      );
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list) && list.length) {
+          setLocalBusinesses(list);
+          return;
+        }
+      }
+    } catch {
+      /* use local cache */
+    }
+    setLocalBusinesses(localBusinesses());
   }
 
   async function saveBusiness() {
@@ -309,7 +322,6 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not save business");
-      if (data.ephemeral) throw new Error("ephemeral");
       selectedBizId = data.business && data.business.id;
       setLocalBusinesses(data.businesses || []);
       toast("Saved " + name + " at " + loc.lat.toFixed(6) + ", " + loc.lng.toFixed(6));
@@ -343,7 +355,6 @@
       const res = await fetch(API_BASE + "/api/businesses?id=" + encodeURIComponent(id), { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not remove business");
-      if (data.ephemeral) throw new Error("ephemeral");
       if (selectedBizId === id) selectedBizId = null;
       setLocalBusinesses(data.businesses || []);
     } catch {
