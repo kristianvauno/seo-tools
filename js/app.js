@@ -689,7 +689,6 @@
       if (!res.ok) {
         if (data.code === "NO_KEY" || /API key/i.test(data.error || "")) {
           apiReady = false;
-          els.apiBanner.classList.remove("hidden");
         }
         throw new Error(data.error || "Could not generate tags");
       }
@@ -1122,48 +1121,39 @@
     }
   });
 
-  els.saveKey.addEventListener("click", async () => {
-    const key = (els.apiKey.value || "").trim();
-    if (!key) return toast("Paste a Perplexity API key first.");
-    try {
-      const res = await fetch(API_BASE + "/api/key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: key }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not save key");
-      apiReady = true;
-      els.apiBanner.classList.add("hidden");
-      els.apiKey.value = "";
-      toast("API key saved on this computer");
-      const item = activeItem();
-      if (item && (!(item.aiKeywords || []).length || !(item.description || "").trim())) tagItem(item);
-    } catch (err) {
-      toast(err.message || "Start the tool with start.bat first.");
-    }
-  });
+  if (els.saveKey) {
+    els.saveKey.addEventListener("click", async () => {
+      const key = (els.apiKey && els.apiKey.value || "").trim();
+      if (!key) return toast("Paste a Perplexity API key first.");
+      try {
+        const res = await fetch(API_BASE + "/api/key", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: key }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not save key");
+        apiReady = true;
+        if (els.apiBanner) els.apiBanner.classList.add("hidden");
+        if (els.apiKey) els.apiKey.value = "";
+        toast("API key saved on this computer");
+        const item = activeItem();
+        if (item && (!(item.aiKeywords || []).length || !(item.description || "").trim())) tagItem(item);
+      } catch (err) {
+        toast(err.message || "Could not save key");
+      }
+    });
+  }
 
   async function checkApi() {
     try {
       const res = await fetch(API_BASE + "/api/status");
       const data = await res.json();
       apiReady = Boolean(data.configured || data.mock);
-      els.apiBanner.classList.toggle("hidden", apiReady);
-      if (!apiReady && data.hosted) {
-        const note = els.apiBanner.querySelector("span");
-        if (note) {
-          note.innerHTML = 'Add <strong>PERPLEXITY_API_KEY</strong> in Vercel Project Settings → Environment Variables, then redeploy.';
-        }
-        if (els.apiKey) els.apiKey.classList.add("hidden");
-        if (els.saveKey) els.saveKey.classList.add("hidden");
-      }
     } catch {
       apiReady = false;
-      els.apiBanner.classList.remove("hidden");
-      els.tagStatus.textContent = "Start the tool with start.bat so auto tags can run.";
-      els.tagStatus.className = "tag-status error";
     }
+    if (els.apiBanner) els.apiBanner.classList.add("hidden");
   }
 
   els.saveBiz.addEventListener("click", () => saveBusiness());

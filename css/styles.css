@@ -50,7 +50,7 @@ button { cursor: pointer; }
   font-size: 0.82rem;
   color: var(--muted);
 }
-.api-banner.hidden { display: none; }
+.api-banner.hidden, .hidden { display: none !important; }
 .api-banner a { color: var(--gold-2); }
 .api-banner input {
   flex: 1 1 220px;
