@@ -3,7 +3,6 @@
   let activeId = null;
   let map;
   let marker;
-  let reverseTimer = 0;
   let objectUrls = [];
   let apiReady = false;
   let geoKeywords = [];
@@ -192,59 +191,8 @@
     renderTags();
   }
 
-  function tagsFromNominatim(row) {
-    const a = (row && row.address) || {};
-    const values = [
-      row && row.name,
-      a.amenity,
-      a.shop,
-      a.tourism,
-      a.leisure,
-      a.building,
-      a.road,
-      a.neighbourhood || a.suburb || a.quarter || a.village || a.hamlet,
-      a.city || a.town || a.municipality,
-      a.county,
-      a.state,
-      a.country,
-    ];
-    const city = a.city || a.town || a.municipality || "";
-    if (city && a.country) values.push(city + ", " + a.country);
-    return ImageMeta.uniqueKeywords(values).slice(0, 12);
-  }
-
-  function placeFromNominatim(row) {
-    const a = (row && row.address) || {};
-    return {
-      city: a.city || a.town || a.municipality || "",
-      state: a.state || a.region || "",
-      country: a.country || "",
-      area: (row && row.name) || a.suburb || a.city || a.town || "",
-    };
-  }
-
   function businessName() {
     return normalizeTag(els.bizName ? els.bizName.value : "");
-  }
-
-  function applyPlace(row, statusText) {
-    geoKeywords = tagsFromNominatim(row);
-    placeInfo = placeFromNominatim(row);
-    const biz = businessName();
-    if (biz) {
-      geoKeywords = ImageMeta.uniqueKeywords([biz].concat(geoKeywords));
-      placeInfo.area = biz;
-    }
-    items.forEach((item) => {
-      item.removedKeywords = (item.removedKeywords || []).filter((k) => {
-        return !geoKeywords.some((g) => g.toLowerCase() === k);
-      });
-    });
-    renderTags();
-    if (statusText) {
-      els.tagStatus.textContent = statusText;
-      els.tagStatus.className = "tag-status ok";
-    }
   }
 
   function localBusinesses() {
@@ -318,8 +266,6 @@
       country: row.country || "",
       area: row.name,
     };
-    geoKeywords = ImageMeta.uniqueKeywords([row.name, row.city, row.state, row.country]);
-    renderTags();
     setLocation(Number(row.lat), Number(row.lng));
     renderBusinesses();
     toast("Loaded " + row.name);
@@ -406,25 +352,6 @@
     }
   }
 
-  async function reverseGeocode(lat, lng) {
-    els.tagStatus.textContent = "Looking up location keywords…";
-    els.tagStatus.className = "tag-status loading";
-    try {
-      const url =
-        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=16&lat=" +
-        encodeURIComponent(lat) +
-        "&lon=" +
-        encodeURIComponent(lng);
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) throw new Error("lookup failed");
-      const row = await res.json();
-      applyPlace(row, "Location keywords added. You can still type more.");
-    } catch {
-      els.tagStatus.textContent = "Could not look up this place. You can still type tags.";
-      els.tagStatus.className = "tag-status";
-    }
-  }
-
   function setLocation(lat, lng, opts) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     els.lat.value = Number(lat).toFixed(6);
@@ -435,10 +362,6 @@
       else marker = L.marker(ll).addTo(map);
       if (!opts || opts.fly !== false) map.flyTo(ll, Math.max(map.getZoom(), 13), { duration: 0.45 });
       setTimeout(() => map.invalidateSize(), 60);
-    }
-    if (!opts || opts.reverse !== false) {
-      clearTimeout(reverseTimer);
-      reverseTimer = setTimeout(() => reverseGeocode(lat, lng), 450);
     }
   }
 
