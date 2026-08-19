@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo EXIF Cleaner &amp; Geo Tagger | SEO Tools</title>
+  <meta name="description" content="Strip camera EXIF from images or write GPS geo tags. Runs locally in your browser — photos never leave this computer.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./index.html">
+      <img src="favicon.svg" alt="">
+      <div>
+        <div class="brand-name"><span>SEO</span> TOOLS</div>
+        <span class="brand-sub">Photo EXIF &amp; Geo</span>
+      </div>
+    </a>
+    <p class="header-note">JPEG strip and geotag stay on this computer. Description and keyword tags send a resized copy to Perplexity and write IPTC/EXIF.</p>
+  </header>
+  <div class="api-banner hidden" id="api-banner">
+    <span>Auto description and tags need a <a href="https://www.perplexity.ai/account/api" target="_blank" rel="noopener">Perplexity API key</a>.</span>
+    <input id="api-key-input" type="password" autocomplete="off" placeholder="pplx-...">
+    <button class="btn btn-primary" id="btn-save-key" type="button">Save key</button>
+  </div>
+
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Remove EXIF. Add geo tags.</h1>
+        <p>Clean camera metadata, write GPS, and add an SEO image description plus keyword tags.</p>
+      </div>
+      <div class="pills">
+        <span class="pill">Local EXIF</span>
+        <span class="pill">Batch ZIP</span>
+        <span class="pill">Map picker</span>
+        <span class="pill">Image description</span>
+        <span class="pill">Keyword tags</span>
+        <span class="pill">Saved businesses</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Photos</h2>
+          <span class="count" id="file-count">0 files</span>
+        </div>
+        <div class="drop" id="drop-zone">
+          <strong>Drop images here</strong>
+          <span>JPEG, PNG, WebP, GIF — files or a whole folder</span>
+          <div class="drop-actions">
+            <label class="file-btn">
+              Choose files
+              <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif" multiple>
+            </label>
+            <label class="file-btn file-btn-ghost">
+              Add bulk images
+              <input id="folder-input" type="file" webkitdirectory directory multiple>
+            </label>
+          </div>
+        </div>
+        <div class="thumbs" id="thumbs"></div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 id="preview-title">Preview</h2>
+          <span class="count" id="preview-status"></span>
+        </div>
+        <div class="preview-stage" id="preview-stage">
+          <div class="empty-preview">
+            <h3>No photo selected</h3>
+            <p>Add one or more images to inspect EXIF, strip it, or write GPS.</p>
+          </div>
+        </div>
+        <div class="tags-box">
+          <div class="field">
+            <label for="image-desc">Image description</label>
+            <textarea id="image-desc" rows="3" placeholder="short, comma, separated, description" disabled></textarea>
+          </div>
+          <div class="field">
+            <label for="tag-input">Keyword tags</label>
+            <div class="tag-box" id="tag-box">
+              <div class="tag-list" id="tag-list"></div>
+              <input id="tag-input" type="text" placeholder="10 LSI keywords, press Enter to add more" autocomplete="off">
+            </div>
+          </div>
+          <div class="desc-row">
+            <span class="tag-status" id="tag-status">Upload a photo for a short comma description and 10 LSI keywords.</span>
+            <button class="btn" id="btn-retag" type="button" disabled>Generate</button>
+            <button class="btn btn-ghost" id="btn-copy-desc" type="button" disabled>Copy description</button>
+          </div>
+        </div>
+        <div class="exif-table" id="exif-table"></div>
+        <div class="actions">
+          <button class="btn btn-danger" id="btn-strip" type="button" disabled>Strip EXIF</button>
+          <button class="btn" id="btn-strip-all" type="button" disabled>Strip all</button>
+          <button class="btn btn-primary" id="btn-geo" type="button" disabled>Add geo tag</button>
+          <button class="btn" id="btn-geo-all" type="button" disabled>Geo-tag all</button>
+          <div class="format-field" role="group" aria-label="Download format">
+            <span>Format</span>
+            <button type="button" class="format-btn active" data-format="jpeg">JPEG</button>
+            <button type="button" class="format-btn" data-format="webp">WebP</button>
+            <button type="button" class="format-btn" data-format="png">PNG</button>
+          </div>
+          <button class="btn" id="btn-download" type="button" disabled>Download</button>
+          <button class="btn" id="btn-zip" type="button" disabled>Download ZIP</button>
+          <button class="btn btn-ghost" id="btn-remove" type="button" disabled>Remove</button>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Location</h2>
+        </div>
+        <div class="geo-body">
+          <div id="map" aria-label="Map for picking GPS coordinates"></div>
+          <div class="coord-grid">
+            <div class="field">
+              <label for="lat">Latitude</label>
+              <input id="lat" type="number" step="0.000001" min="-90" max="90" placeholder="6.116400">
+            </div>
+            <div class="field">
+              <label for="lng">Longitude</label>
+              <input id="lng" type="number" step="0.000001" min="-180" max="180" placeholder="125.171700">
+            </div>
+          </div>
+          <div class="field">
+            <label for="biz-name">Business name</label>
+            <input id="biz-name" type="text" placeholder="e.g. Tierra Santos Realty" autocomplete="off">
+          </div>
+          <div class="actions" style="padding: 0; border: 0;">
+            <button class="btn btn-primary" id="btn-save-biz" type="button">Save business</button>
+            <button class="btn" id="btn-locate" type="button">Use my location</button>
+            <button class="btn" id="btn-copy" type="button">Copy coords</button>
+          </div>
+          <div class="biz-block">
+            <div class="biz-head">
+              <h3>Saved businesses</h3>
+              <span class="count" id="biz-count">0</span>
+            </div>
+            <div class="biz-list" id="biz-list"></div>
+          </div>
+          <p class="tag-hint">Each saved name keeps its own latitude and longitude. Click one to pin the map, then geotag.</p>
+          <label class="check">
+            <input id="strip-others" type="checkbox" checked>
+            <span>When adding geo tags, also remove camera and device EXIF. GPS, description, and keyword tags stay on the file.</span>
+          </label>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <script src="vendor/piexif.js"></script>
+  <script src="vendor/jszip.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="js/meta.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
