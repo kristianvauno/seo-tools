@@ -1,0 +1,12 @@
+{
+  "name": "seo-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Photo EXIF cleaner, GPS geo tagger, and SEO image description/keywords tool",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

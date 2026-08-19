@@ -330,6 +330,10 @@
       const res = await fetch(API_BASE + "/api/businesses");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not load businesses");
+      if (data.ephemeral) {
+        setLocalBusinesses(localBusinesses());
+        return;
+      }
       setLocalBusinesses(data.businesses || []);
     } catch {
       setLocalBusinesses(localBusinesses());
@@ -359,6 +363,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not save business");
+      if (data.ephemeral) throw new Error("ephemeral");
       selectedBizId = data.business && data.business.id;
       setLocalBusinesses(data.businesses || []);
       toast("Saved " + name + " at " + loc.lat.toFixed(6) + ", " + loc.lng.toFixed(6));
@@ -392,6 +397,7 @@
       const res = await fetch(API_BASE + "/api/businesses?id=" + encodeURIComponent(id), { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not remove business");
+      if (data.ephemeral) throw new Error("ephemeral");
       if (selectedBizId === id) selectedBizId = null;
       setLocalBusinesses(data.businesses || []);
     } catch {
@@ -1144,6 +1150,14 @@
       const data = await res.json();
       apiReady = Boolean(data.configured || data.mock);
       els.apiBanner.classList.toggle("hidden", apiReady);
+      if (!apiReady && data.hosted) {
+        const note = els.apiBanner.querySelector("span");
+        if (note) {
+          note.innerHTML = 'Add <strong>PERPLEXITY_API_KEY</strong> in Vercel Project Settings → Environment Variables, then redeploy.';
+        }
+        if (els.apiKey) els.apiKey.classList.add("hidden");
+        if (els.saveKey) els.saveKey.classList.add("hidden");
+      }
     } catch {
       apiReady = false;
       els.apiBanner.classList.remove("hidden");
