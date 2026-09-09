@@ -238,7 +238,7 @@ button { cursor: pointer; }
 .thumb .ph { display: grid; place-items: center; color: var(--dim); font-size: 0.7rem; }
 .thumb .meta { min-width: 0; display: grid; gap: 0.1rem; }
 .thumb .name { font-size: 0.78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.thumb .sub { font-size: 0.7rem; color: var(--dim); white-space: nowrap; }
+.thumb .sub { font-size: 0.7rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge {
   font-size: 0.64rem;
   font-weight: 700;
@@ -325,6 +325,33 @@ button { cursor: pointer; }
   gap: 0.45rem;
 }
 .tag-hint { font-size: 0.75rem; color: var(--dim); }
+.seo-name-field .tag-hint { margin-top: 0.15rem; }
+.seo-name-row {
+  display: flex;
+  align-items: stretch;
+}
+.seo-name-row input {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  font-size: 0.82rem;
+}
+.seo-ext {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 0.75rem;
+  background: #171c28;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  color: var(--gold-2);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.seo-name-row:focus-within .seo-ext { border-color: var(--gold); }
 
 .biz-block { display: grid; gap: 0.45rem; }
 .biz-head {
@@ -591,6 +618,14 @@ button { cursor: pointer; }
 }
 
 .leaflet-container { background: #0c1018; font-family: var(--font); }
+#map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.35);
+}
+#map .leaflet-control-attribution {
+  background: rgba(12, 16, 24, 0.82);
+  color: var(--dim);
+}
+#map .leaflet-control-attribution a { color: var(--gold-2); }
 
 @media (max-width: 1080px) {
   .workspace { grid-template-columns: 1fr; }

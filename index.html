@@ -37,6 +37,7 @@
         <span class="pill">Image description</span>
         <span class="pill">Keyword tags</span>
         <span class="pill">Saved businesses</span>
+        <span class="pill">SEO filenames</span>
       </div>
     </section>
 
@@ -90,6 +91,14 @@
             <span class="tag-status" id="tag-status">Upload a photo for a short comma description and 10 LSI keywords.</span>
             <button class="btn" id="btn-retag" type="button" disabled>Generate</button>
             <button class="btn btn-ghost" id="btn-copy-desc" type="button" disabled>Copy description</button>
+          </div>
+          <div class="field seo-name-field">
+            <label for="seo-name">Download name</label>
+            <div class="seo-name-row">
+              <input id="seo-name" type="text" spellcheck="false" autocomplete="off" placeholder="business-description-city" disabled>
+              <span class="seo-ext" id="seo-ext">.jpg</span>
+            </div>
+            <p class="tag-hint">SEO filename is built on this computer from the business name, description, tags, and city. No API. Edit to lock it.</p>
           </div>
         </div>
         <div class="exif-table" id="exif-table"></div>

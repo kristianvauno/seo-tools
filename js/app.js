@@ -45,6 +45,8 @@
     retag: document.getElementById("btn-retag"),
     desc: document.getElementById("image-desc"),
     copyDesc: document.getElementById("btn-copy-desc"),
+    seoName: document.getElementById("seo-name"),
+    seoExt: document.getElementById("seo-ext"),
     bizName: document.getElementById("biz-name"),
     saveBiz: document.getElementById("btn-save-biz"),
     bizList: document.getElementById("biz-list"),
@@ -83,11 +85,124 @@
     return (n / (1024 * 1024)).toFixed(2) + " MB";
   }
 
-  function outName(item) {
-    if (item.outName) return item.outName;
-    const base = item.name.replace(/\.[^.]+$/, "");
-    if (item.kind === "jpeg") return item.name;
-    return base + ".jpg";
+  const SEO_STOP = new Set(["a", "an", "the", "of"]);
+  const SEO_LEGAL = new Set(["llc", "inc", "ltd", "co", "corp", "company", "limited", "plc", "llp", "pc"]);
+  const SEO_GENERIC = /^(img|dsc|dscn|dscf|pict|pxl|mvimg|photo|image|scan|screenshot|screen-shot|whatsapp-image|file|download|untitled|unknown|pic)(-\d+)*$/i;
+
+  function slugify(text) {
+    return String(text || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/['’]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-+/g, "-");
+  }
+
+  function slugTokens(text, opts) {
+    const keepStop = opts && opts.keepStop;
+    const dropLegal = opts && opts.dropLegal;
+    return slugify(text)
+      .split("-")
+      .filter((word) => {
+        if (!word) return false;
+        if (word.length > 32) return false;
+        if (!keepStop && SEO_STOP.has(word)) return false;
+        if (dropLegal && SEO_LEGAL.has(word)) return false;
+        if (word.length === 1 && !/^\d$/.test(word)) return false;
+        return true;
+      });
+  }
+
+  function isGenericFileName(name) {
+    const slug = slugify(String(name || "").replace(/\.[^.]+$/, ""));
+    if (!slug) return true;
+    if (SEO_GENERIC.test(slug)) return true;
+    if (/^(img|dsc|dscn|dscf|pict|pxl|mvimg)[-_]?\d/i.test(slug)) return true;
+    if (/^\d{6,}$/.test(slug)) return true;
+    if (/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(slug)) return true;
+    if (/^[a-f0-9]{16,}$/.test(slug)) return true;
+    return false;
+  }
+
+  function addSlugTokens(words, seen, list, max) {
+    for (let i = 0; i < list.length; i++) {
+      const word = list[i];
+      if (seen.has(word)) continue;
+      seen.add(word);
+      words.push(word);
+      if (max && words.length >= max) return;
+    }
+  }
+
+  function capStem(words, maxLen) {
+    const kept = [];
+    for (let i = 0; i < words.length; i++) {
+      const next = kept.concat(words[i]).join("-");
+      if (kept.length && next.length > maxLen) break;
+      kept.push(words[i]);
+    }
+    return kept.join("-") || "photo";
+  }
+
+  function appendPhrase(words, phrase) {
+    if (!phrase || !phrase.length) return;
+    if (words.join("-").indexOf(phrase.join("-")) !== -1) return;
+    for (let i = 0; i < phrase.length; i++) words.push(phrase[i]);
+  }
+
+  function seoStem(item) {
+    const words = [];
+    const seen = new Set();
+    addSlugTokens(words, seen, slugTokens(businessName(), { keepStop: true, dropLegal: true }));
+    const desc = item && (item.description || "").trim();
+    if (desc) addSlugTokens(words, seen, slugTokens(desc), 14);
+    if (words.length < 8) {
+      const tags = currentKeywords(item);
+      for (let i = 0; i < tags.length && words.length < 12; i++) {
+        addSlugTokens(words, seen, slugTokens(tags[i]));
+      }
+    }
+    if (!desc && item && item.name && !isGenericFileName(item.name)) {
+      addSlugTokens(words, seen, slugTokens(item.name.replace(/\.[^.]+$/, "")));
+    }
+    appendPhrase(words, slugTokens(placeInfo.city, { keepStop: true }));
+    if (words.length < 16) appendPhrase(words, slugTokens(placeInfo.state, { keepStop: true }));
+    if (!words.length && item && item.name) {
+      addSlugTokens(words, seen, slugTokens(item.name.replace(/\.[^.]+$/, ""), { keepStop: true }));
+    }
+    if (!words.length) words.push("photo");
+    return capStem(words, 80);
+  }
+
+  function downloadStem(item) {
+    if (item && item.seoNameLocked && item.seoName) {
+      const custom = slugify(String(item.seoName).replace(/\.[^.]+$/, ""));
+      if (custom) return custom;
+    }
+    return seoStem(item);
+  }
+
+  function formatExt(format) {
+    return (format === "jpeg" ? "jpg" : format || "jpg");
+  }
+
+  function uniqueDownloadName(stem, ext, used) {
+    const base = stem || "photo";
+    let name = base + "." + ext;
+    let n = 2;
+    while (used.has(name)) {
+      name = base + "-" + n + "." + ext;
+      n += 1;
+    }
+    used.add(name);
+    return name;
+  }
+
+  function zipFileName() {
+    const biz = capStem(slugTokens(businessName(), { keepStop: true, dropLegal: true }), 60);
+    return (biz ? biz + "-photos" : "seo-tools-photos") + ".zip";
   }
 
   function badgeFor(item) {
@@ -155,6 +270,7 @@
       els.tagList.appendChild(chip);
     });
     syncTagStatus();
+    syncDownloadName();
   }
 
   function addUserTag(raw) {
@@ -268,6 +384,10 @@
     };
     setLocation(Number(row.lat), Number(row.lng));
     renderBusinesses();
+    renderThumbs();
+    const item = activeItem();
+    if (item && els.title) els.title.textContent = downloadStem(item);
+    syncDownloadName();
     toast("Loaded " + row.name);
   }
 
@@ -386,8 +506,8 @@
 
   function initMap() {
     map = L.map("map", { zoomControl: true, attributionControl: true }).setView([12.8797, 121.774], 5);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
       maxZoom: 19,
     }).addTo(map);
     map.on("click", (e) => setLocation(e.latlng.lat, e.latlng.lng, { fly: false }));
@@ -411,7 +531,6 @@
     item.kind = "jpeg";
     item.mime = "image/jpeg";
     item.converted = true;
-    item.outName = item.name.replace(/\.[^.]+$/, "") + ".jpg";
     return u8;
   }
 
@@ -632,6 +751,8 @@
       if (item.id === activeId) {
         renderTags();
         syncDescription();
+        renderThumbs();
+        if (els.title) els.title.textContent = downloadStem(item);
       }
     } catch (err) {
       item.tagState = "error";
@@ -703,10 +824,26 @@
     return (active && active.getAttribute("data-format")) || "jpeg";
   }
 
-  function formatFileName(item, format) {
-    const base = (item.outName || item.name).replace(/\.[^.]+$/, "");
-    const ext = format === "jpeg" ? "jpg" : format;
-    return base + "." + ext;
+  function formatFileName(item, format, used) {
+    const ext = formatExt(format);
+    const stem = downloadStem(item);
+    if (used) return uniqueDownloadName(stem, ext, used);
+    return stem + "." + ext;
+  }
+
+  function syncDownloadName() {
+    if (!els.seoName) return;
+    const ext = "." + formatExt(selectedFormat());
+    if (els.seoExt) els.seoExt.textContent = ext;
+    const item = activeItem();
+    if (!item) {
+      els.seoName.value = "";
+      els.seoName.disabled = true;
+      return;
+    }
+    els.seoName.disabled = false;
+    if (document.activeElement === els.seoName) return;
+    els.seoName.value = downloadStem(item);
   }
 
   async function rasterize(item, mime, quality) {
@@ -731,7 +868,7 @@
     return new Uint8Array(await blob.arrayBuffer());
   }
 
-  async function exportItem(item, format) {
+  async function exportItem(item, format, used) {
     await persistItem(item, null);
     if (format === "jpeg") {
       if (item.kind !== "jpeg") {
@@ -739,11 +876,11 @@
         item.kind = "jpeg";
         item.mime = "image/jpeg";
       }
-      return { u8: item.current, mime: "image/jpeg", name: formatFileName(item, "jpeg") };
+      return { u8: item.current, mime: "image/jpeg", name: formatFileName(item, "jpeg", used) };
     }
     const mime = format === "png" ? "image/png" : "image/webp";
     const u8 = await rasterize(item, mime, format === "png" ? undefined : 0.92);
-    return { u8, mime, name: formatFileName(item, format) };
+    return { u8, mime, name: formatFileName(item, format, used) };
   }
 
   function renderThumbs() {
@@ -758,8 +895,8 @@
         '<img alt="" src="' + item.preview + '">' +
         '<span class="meta"><span class="name"></span><span class="sub"></span></span>' +
         '<span class="badge ' + badge.cls + '"></span>';
-      btn.querySelector(".name").textContent = item.name;
-      btn.querySelector(".sub").textContent = bytesLabel(item.current.length);
+      btn.querySelector(".name").textContent = downloadStem(item);
+      btn.querySelector(".sub").textContent = item.name + " · " + bytesLabel(item.current.length);
       btn.querySelector(".badge").textContent = badge.text;
       btn.addEventListener("click", () => {
         activeId = item.id;
@@ -829,8 +966,8 @@
       return;
     }
 
-    els.title.textContent = item.name;
-    els.status.textContent = item.kind.toUpperCase() + " · " + bytesLabel(item.current.length);
+    els.title.textContent = downloadStem(item);
+    els.status.textContent = item.name + " · " + item.kind.toUpperCase() + " · " + bytesLabel(item.current.length);
     els.stage.innerHTML = "";
     const img = document.createElement("img");
     img.alt = item.name;
@@ -856,6 +993,7 @@
   function render() {
     renderThumbs();
     renderPreview();
+    syncDownloadName();
   }
 
   ["dragenter", "dragover"].forEach((type) => {
@@ -913,7 +1051,7 @@
     if (!loc) return toast("Set a location on the map or enter coordinates first.");
     try {
       await geoItem(item, loc);
-      toast("Geo tag and keywords written to " + outName(item));
+      toast("Geo tag and keywords written to " + formatFileName(item, "jpeg"));
       render();
     } catch (err) {
       toast(err.message || "Could not write GPS");
@@ -935,6 +1073,7 @@
   els.formatBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       els.formatBtns.forEach((other) => other.classList.toggle("active", other === btn));
+      syncDownloadName();
     });
   });
 
@@ -946,6 +1085,7 @@
       const exported = await exportItem(item, format);
       render();
       downloadBlob(new Blob([exported.u8], { type: exported.mime }), exported.name);
+      toast("Saved as " + exported.name);
     } catch (err) {
       toast(err.message || "Could not save description and keywords");
     }
@@ -958,19 +1098,14 @@
       const zip = new JSZip();
       const used = new Set();
       for (const item of items) {
-        const exported = await exportItem(item, format);
-        let name = exported.name;
-        if (used.has(name)) {
-          const parts = name.split(".");
-          const ext = parts.pop();
-          name = parts.join(".") + "-" + item.id.slice(-4) + "." + ext;
-        }
-        used.add(name);
-        zip.file(name, exported.u8);
+        const exported = await exportItem(item, format, used);
+        zip.file(exported.name, exported.u8);
       }
       render();
       const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, "seo-tools-photos.zip");
+      const zipName = zipFileName();
+      downloadBlob(blob, zipName);
+      toast("Saved " + items.length + " files as " + zipName);
     } catch (err) {
       toast(err.message || "Could not build ZIP");
     }
@@ -1042,6 +1177,11 @@
     if (!item) return;
     item.description = els.desc.value;
     els.copyDesc.disabled = !item.description.trim();
+    if (!item.seoNameLocked) {
+      renderThumbs();
+      if (els.title) els.title.textContent = downloadStem(item);
+      syncDownloadName();
+    }
   });
 
   els.copyDesc.addEventListener("click", async () => {
@@ -1090,6 +1230,33 @@
     if (els.apiBanner) els.apiBanner.classList.add("hidden");
   }
 
+  if (els.seoName) {
+    els.seoName.addEventListener("input", () => {
+      const item = activeItem();
+      if (!item) return;
+      const raw = els.seoName.value.trim();
+      if (!raw) {
+        item.seoNameLocked = false;
+        item.seoName = "";
+        return;
+      }
+      item.seoNameLocked = true;
+      item.seoName = raw;
+    });
+    els.seoName.addEventListener("blur", () => {
+      const item = activeItem();
+      if (!item) return;
+      if (item.seoNameLocked) {
+        item.seoName = slugify(String(item.seoName).replace(/\.[^.]+$/, ""));
+        els.seoName.value = item.seoName;
+        if (els.title) els.title.textContent = downloadStem(item);
+        renderThumbs();
+      } else {
+        syncDownloadName();
+      }
+    });
+  }
+
   els.saveBiz.addEventListener("click", () => saveBusiness());
   els.bizName.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -1097,7 +1264,13 @@
       saveBusiness();
     }
   });
-  els.bizName.addEventListener("input", () => renderBusinesses());
+  els.bizName.addEventListener("input", () => {
+    renderBusinesses();
+    renderThumbs();
+    const item = activeItem();
+    if (item && els.title) els.title.textContent = downloadStem(item);
+    syncDownloadName();
+  });
 
   initMap();
   render();
